@@ -9,35 +9,44 @@ use common\components\JwtHttpBearerAuth;
 
 class UserController extends Controller
 {
-    public function behaviors()
+    public function behaviors(): array
     {
         $b = parent::behaviors();
-        $b['verbs'] = ['class'=>VerbFilter::class,'actions'=>[
-            'register'=>['POST'], 'view'=>['GET'],
+        $b['verbs'] = [
+            'class'=>VerbFilter::class,
+            'actions'=>[
+                'register'=> ['POST'],
+                'view'=> ['GET'],
         ]];
-        $b['authenticator'] = ['class'=>JwtHttpBearerAuth::class,'only'=>['view']];
+        $b['authenticator'] = [
+            'class'=>JwtHttpBearerAuth::class,
+            'only'=>['view']
+        ];
         return $b;
     }
 
-    public function actionRegister()
+    public function actionRegister(): array|User
     {
         $body = Yii::$app->request->bodyParams;
         $user = new User();
         $user->username = $body['login'] ?? $body['username'] ?? null;
         $user->email = $body['email'] ?? null;
         $password = $body['password'] ?? null;
-        if (!$password) { Yii::$app->response->statusCode=400; return ['error'=>'Password is required']; }
+        if (!$password) {
+            Yii::$app->response->statusCode=400; return ['error'=>'Password is required'];
+        }
         $user->setPassword($password);
         $user->auth_key = Yii::$app->security->generateRandomString();
         if ($user->validate() && $user->save()) return $user;
         Yii::$app->response->statusCode = 422; return $user->getErrors();
     }
 
-    public function actionView($id)
+    public function actionView($id): array|User
     {
-        return [123];
-        $u = User::findOne((int)$id);
-        if (!$u){ Yii::$app->response->statusCode=404; return ['error'=>'User not found']; }
-        return $u;
+        $user = User::findOne((int)$id);
+        if (!$user){
+            Yii::$app->response->statusCode=404; return ['error'=>'User not found'];
+        }
+        return $user;
     }
 }

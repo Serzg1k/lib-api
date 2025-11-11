@@ -30,16 +30,18 @@ services:
       - php
 
   db:
-    image: mysql:8
-    container_name: library_db
+    image: mariadb:11
     environment:
       MYSQL_DATABASE: ${DB_NAME}
       MYSQL_ROOT_PASSWORD: root
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASS}
-    ports:
-      - "3306:3306"
     command: --default-authentication-plugin=mysql_native_password
+    healthcheck:
+      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -u${MYSQL_USER} -p${MYSQL_PASSWORD} --silent" ]
+      interval: 5s
+      timeout: 3s
+      retries: 30
     volumes:
       - dbdata:/var/lib/mysql
 

@@ -1,0 +1,23 @@
+namespace: apiTests
+paths:
+  tests: tests
+  output: tests/_output
+  data: tests/_data
+  support: tests/_support
+  envs: tests/_envs
+settings:
+  bootstrap: _bootstrap.php
+  colors: true
+  log: true
+actor_suffix: Tester
+suites:
+  api:
+    actor: ApiTester
+    path: api
+    modules:
+      enabled:
+        - Asserts
+        - REST:
+            url: 'http://nginx'
+            depends: PhpBrowser
+            part: Json

@@ -1,60 +1,243 @@
-<p align="center">
-    <a href="https://github.com/yiisoft" target="_blank">
-        <img src="https://avatars0.githubusercontent.com/u/993323" height="100px">
-    </a>
-    <h1 align="center">Yii 2 Advanced Project Template</h1>
-    <br>
-</p>
+# Library API (Yii2 Advanced + Docker)
 
-Yii 2 Advanced Project Template is a skeleton [Yii 2](https://www.yiiframework.com/) application best for
-developing complex Web applications with multiple tiers.
+A small RESTful API for managing a library of books, built on **Yii2 Advanced** and shipped with **Docker (Nginx + PHP-FPM + MariaDB)**. Authentication via **JWT**. Responses are JSON in REST style with pagination envelopes (`_items`, `_links`, `_meta`).
 
-The template includes three tiers: front end, back end, and console, each of which
-is a separate Yii application.
+---
 
-The template is designed to work in a team development environment. It supports
-deploying the application in different environments.
+## Quick Start
 
-Documentation is at [docs/guide/README.md](docs/guide/README.md).
+### Prerequisites
+- Docker + Docker Compose
+- Git (optional)
 
-[![Latest Stable Version](https://img.shields.io/packagist/v/yiisoft/yii2-app-advanced.svg)](https://packagist.org/packages/yiisoft/yii2-app-advanced)
-[![Total Downloads](https://img.shields.io/packagist/dt/yiisoft/yii2-app-advanced.svg)](https://packagist.org/packages/yiisoft/yii2-app-advanced)
-[![build](https://github.com/yiisoft/yii2-app-advanced/workflows/build/badge.svg)](https://github.com/yiisoft/yii2-app-advanced/actions?query=workflow%3Abuild)
+### 1) Clone & enter the project
+```bash
+git clone <your-repo-url> library-api
+cd library-api
+```
 
-DIRECTORY STRUCTURE
--------------------
+### 2) Environment
+Create `.env` in the project root (same folder as `docker-compose.yml`):
+```env
+APP_PORT=8080
+
+DB_HOST=db
+DB_NAME=library
+DB_USER=app
+DB_PASS=app
+DB_PORT=3306
+```
+
+### 3) Start the stack
+```bash
+docker compose pull
+docker compose up -d
+```
+
+- Nginx will serve **http://localhost:${APP_PORT}** (default `http://localhost:8080`).
+- PHP-FPM container is called `php`, DB is `db` (MariaDB 11 or MySQL 8 depending on your compose).
+
+### 4) Install PHP dependencies (Composer)
+```bash
+docker compose exec php bash -lc "composer install"
+```
+
+### 5) Initialize Yii2 Advanced (first time only)
+```bash
+docker compose exec php php /app/init --env=Development --overwrite=All
+```
+
+### 6) Run DB migrations
+```bash
+docker compose exec php php /app/yii migrate --interactive=0
+```
+
+### 7) Smoke check
+```bash
+curl "http://localhost:8080/books"
+```
+
+You should get JSON (empty list with pagination meta if there are no books).
+
+---
+
+## Project Layout (key files)
 
 ```
-common
-    config/              contains shared configurations
-    mail/                contains view files for e-mails
-    models/              contains model classes used in both backend and frontend
-    tests/               contains tests for common classes    
-console
-    config/              contains console configurations
-    controllers/         contains console controllers (commands)
-    migrations/          contains database migrations
-    models/              contains console-specific model classes
-    runtime/             contains files generated during runtime
-backend
-    assets/              contains application assets such as JavaScript and CSS
-    config/              contains backend configurations
-    controllers/         contains Web controller classes
-    models/              contains backend-specific model classes
-    runtime/             contains files generated during runtime
-    tests/               contains tests for backend application    
-    views/               contains view files for the Web application
-    web/                 contains the entry script and Web resources
-frontend
-    assets/              contains application assets such as JavaScript and CSS
-    config/              contains frontend configurations
-    controllers/         contains Web controller classes
-    models/              contains frontend-specific model classes
-    runtime/             contains files generated during runtime
-    tests/               contains tests for frontend application
-    views/               contains view files for the Web application
-    web/                 contains the entry script and Web resources
-    widgets/             contains frontend widgets
-vendor/                  contains dependent 3rd-party packages
-environments/            contains environment-based overrides
+library-api/
+  api/
+    config/
+      main.php
+    controllers/
+      BookController.php
+      AuthController.php
+      UserController.php
+    web/
+      index.php
+  common/
+    config/
+      db.php
+  console/
+    migrations/
+      mYYYYMMDDHHmmss_*.php
+  docker-compose.yml
+  Dockerfile
+  nginx.conf
+  .env
+  README.md (this file)
 ```
+
+- **Nginx** serves from `/app/api/web` and forwards PHP to `php:9000`.
+- **DB** DSN is read from env in `common/config/db.php`.
+
+---
+
+## API
+
+Base URL: `http://localhost:8080`
+
+### Auth & Users
+- `POST /users` — register (body: `login`, `password`, `email`)  
+  Response `200` with created user.
+- `POST /auth/login` — login (body: `login`, `password`)  
+  Response `200` with `{ token, token_type: "Bearer", expires_in }`.
+- `GET /users/{id}` — profile (authorized only, `Authorization: Bearer <JWT>`).
+
+### Books
+- `GET /books` — list with pagination (`page`, `per-page`) and HATEOAS envelopes:
+  - `_links` → `self`, `first`, `next`, `last`
+  - `_meta` → `totalCount`, `pageCount`, `currentPage`, `perPage`
+- `POST /books` — create (authorized)
+- `GET /books/{id}` — show
+- `PUT /books/{id}` — update (only owner)
+- `DELETE /books/{id}` — delete (only owner)
+
+#### Example cURL
+```bash
+# Register
+curl -X POST http://localhost:8080/users \
+  -H "Content-Type: application/json" \
+  -d '{"login":"alice","password":"secret123","email":"alice@example.com"}'
+
+# Login → get JWT
+curl -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"login":"alice","password":"secret123"}'
+
+# Create a book
+curl -X POST http://localhost:8080/books \
+  -H "Authorization: Bearer <JWT>" -H "Content-Type: application/json" \
+  -d '{"title":"Clean Code","author":"Robert C. Martin","published_year":2008}'
+
+# List books (HATEOAS)
+curl "http://localhost:8080/books?page=1&per-page=10"
+```
+
+### Validation & Errors
+- Invalid input → `422` with error map.
+- Unauthorized → `401` JSON error.
+- Forbidden (edit/delete not owned) → `403` JSON error.
+- Not found → `404` JSON error.
+
+---
+
+## Pagination Envelopes
+
+Controller uses Yii `Serializer` with `collectionEnvelope`. The list response looks like:
+```json
+{
+  "items": [ { "id": 1, "title": "..." } ],
+  "_links": {
+    "self":  { "href": "http://localhost:8080/books?page=1&per-page=2" },
+    "first": { "href": "http://localhost:8080/books?page=1&per-page=2" },
+    "next":  { "href": "http://localhost:8080/books?page=2&per-page=2" },
+    "last":  { "href": "http://localhost:8080/books?page=5&per-page=2" }
+  },
+  "_meta": {
+    "totalCount": 10,
+    "pageCount": 5,
+    "currentPage": 1,
+    "perPage": 2
+  }
+}
+```
+
+---
+
+## Running Tests (Codeception)
+
+We keep an isolated suite for API under `api/tests`.
+
+### Smoke run (inside container)
+```bash
+docker compose exec php vendor/bin/codecept run -c api api -vv
+```
+
+- Suite config: `api/codeception.yml`
+- Actor: `api/tests/_support/ApiTester.php`
+- Tests: `api/tests/api/*.php`
+- Modules: `Asserts`, `REST` (`PhpBrowser` dependency).
+
+> By default, tests hit `http://nginx` from inside the PHP container. If you run tests from your host, change the suite URL to `http://localhost:8080` in `api/codeception.yml`.
+
+### Creating a new test
+```bash
+docker compose exec php vendor/bin/codecept generate:cest -c api api MyFeature
+```
+
+---
+
+## Docker Cheatsheet
+
+- Logs:
+  ```bash
+  docker compose logs -f nginx
+  docker compose logs -f php
+  docker compose logs -f db
+  ```
+- Recreate DB volume (⚠️ wipes data):
+  ```bash
+  docker compose down -v
+  docker compose up -d
+  ```
+- Common DB issues:
+  - Port 3306 busy → remove `ports: ["3306:3306"]` from DB service or change to `3307:3306`.
+  - `getaddrinfo for db failed` → ensure service name is `db` and PHP env `DB_HOST=db`.
+  - DB not healthy → check `docker compose logs -f db`.
+
+---
+
+## Configuration Notes
+
+- **Nginx** (`nginx.conf`)
+  - `root /app/api/web;`
+  - `try_files $uri $uri/ /index.php?$query_string;`
+- **PHP** (`Dockerfile`)
+  - PHP-FPM 8.x + extensions (`pdo_mysql`, `intl`, `zip`).
+  - Composer available in container.
+- **DB** (`common/config/db.php`)
+  - Reads DSN/creds from env: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`.
+  - Switch to SQLite by setting `dsn` to `sqlite:@common/runtime/library.sqlite` if needed.
+
+---
+
+## Postman
+
+You can import the following basic requests:
+- Register, Login, Books list, Create, View, Update, Delete
+
+(Optionally add a ready-made collection file at `postman/Library-API.postman_collection.json` and import it).
+
+---
+
+## Troubleshooting
+
+- **404 from Apache/Nginx (not Yii)**: make sure Docker is used; locally ensure rewrite is enabled. In Docker Nginx, `try_files` handles pretty URLs.
+- **`Could not open input file: yii`**: run with absolute path `/app/yii` inside container.
+- **`Class 'Yii' not found` in tests**: use REST tests without Yii2 module (already configured) or fix `entryScript` path if enabling it.
+- **`422` on register in tests**: users already exist → use unique logins/emails in tests or reset DB volume.
+
+---
+
+## License
+MIT (or your preferred license).

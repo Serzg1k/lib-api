@@ -7,9 +7,15 @@ use yii\filters\VerbFilter;
 use yii\data\ActiveDataProvider;
 use common\models\Book;
 use common\components\JwtHttpBearerAuth;
+use yii\rest\Serializer;
 
 class BookController extends Controller
 {
+
+    public $serializer = [
+        'class' => Serializer::class,
+        'collectionEnvelope' => 'items',
+    ];
     public function behaviors()
     {
         $b = parent::behaviors();
