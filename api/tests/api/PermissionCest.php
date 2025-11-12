@@ -22,26 +22,26 @@ final class PermissionCest
 
     public function forbidEditingForeignBook(ApiTester $I)
     {
-        // Пользователь А создаёт книгу
+        // User А create book
         $tokenA = $this->registerAndLogin($I, 'owner_'.uniqid());
         $I->haveHttpHeader('Authorization', "Bearer {$tokenA}");
         $I->sendPost('/books', ['title'=>'TDD', 'author'=>'K. Beck', 'published_year'=>2003]);
         $I->seeResponseCodeIs(200);
         $bookId = $I->grabDataFromResponseByJsonPath('$.id')[0];
 
-        // Пользователь B пытается править/удалять
+        // User B try update/delete book
         $tokenB = $this->registerAndLogin($I, 'intruder_'.uniqid());
         $I->haveHttpHeader('Authorization', "Bearer {$tokenB}");
 
-        // Обновление — должно быть 403
+        // update —  403
         $I->sendPut("/books/{$bookId}", ['description'=>'hacked']);
         $I->seeResponseCodeIs(403);
 
-        // Удаление — тоже 403
+        // delete — also 403
         $I->sendDelete("/books/{$bookId}");
         $I->seeResponseCodeIs(403);
 
-        // Просмотр чужой книги разрешён (200)
+        // Viewing someone else's book is allowed (200)
         $I->sendGet("/books/{$bookId}");
         $I->seeResponseCodeIs(200);
     }

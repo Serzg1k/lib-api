@@ -14,11 +14,11 @@ final class AuthCest
         $login = 'alice_' . uniqid();
         $email = $login . '@test.local';
 
-        // регистрируем уникального юзера
+        // register user
         $I->sendPost('/users', ['login'=>$login,'password'=>'secret123','email'=>$email]);
         $I->seeResponseCodeIs(200);
 
-        // логинимся этим же пользователем
+        // login user
         $I->sendPost('/auth/login', ['login'=>$login,'password'=>'secret123']);
         $I->seeResponseCodeIs(200);
         $I->seeResponseContains('"token"');

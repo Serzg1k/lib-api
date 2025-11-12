@@ -12,12 +12,23 @@ A small RESTful API for managing a library of books, built on **Yii2 Advanced** 
 
 ### 1) Clone & enter the project
 ```bash
-git clone <your-repo-url> library-api
+git clone git@github.com:Serzg1k/lib-api.git library-api
 cd library-api
 ```
 
 ### 2) Environment
-Create `.env` in the project root (same folder as `docker-compose.yml`):
+
+There are **two easy ways** to set environment variables used by Docker and Yii:
+
+**Option A — rename template (recommended):**
+1. In the project root, find `.env_example` (shipped with the repo).
+2. Rename it to **`.env`** (same folder as `docker-compose.yml`).
+   ```bash
+   mv .env_example .env
+   ```
+
+**Option B — create `.env` from scratch:**
+Create a new file named **`.env`** next to `docker-compose.yml` with the following content:
 ```env
 APP_PORT=8080
 
@@ -27,6 +38,22 @@ DB_USER=app
 DB_PASS=app
 DB_PORT=3306
 ```
+
+**What these mean:**
+
+| Variable   | Default | Purpose |
+|------------|---------|---------|
+| `APP_PORT` | `8080`  | Host port to expose Nginx (`http://localhost:${APP_PORT}`). Change if 8080 is busy. |
+| `DB_HOST`  | `db`    | Docker Compose service name of the database container. |
+| `DB_NAME`  | `library` | Database name used by the app. |
+| `DB_USER`  | `app`   | DB user created inside the DB container. |
+| `DB_PASS`  | `app`   | Password for `DB_USER`. |
+| `DB_PORT`  | `3306`  | DB port inside the Docker network. You usually don’t need to publish it to the host. |
+
+> **Notes**
+> - If your host already runs MySQL on `3306`, **do not** publish DB port from the container, or change the host mapping (e.g., `3307:3306`). The app talks to DB internally by `DB_HOST=db` and doesn’t need host port.
+> - Works with **MySQL 8** and **MariaDB 11**. For MariaDB, the `.env` stays the same — only the container image differs.
+> - Yii reads these vars in `common/config/db.php`. You can switch to SQLite by editing the DSN there if you prefer a file DB for local development.
 
 ### 3) Start the stack
 ```bash
@@ -219,14 +246,6 @@ docker compose exec php vendor/bin/codecept generate:cest -c api api MyFeature
   - Reads DSN/creds from env: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASS`.
   - Switch to SQLite by setting `dsn` to `sqlite:@common/runtime/library.sqlite` if needed.
 
----
-
-## Postman
-
-You can import the following basic requests:
-- Register, Login, Books list, Create, View, Update, Delete
-
-(Optionally add a ready-made collection file at `postman/Library-API.postman_collection.json` and import it).
 
 ---
 
@@ -237,7 +256,3 @@ You can import the following basic requests:
 - **`Class 'Yii' not found` in tests**: use REST tests without Yii2 module (already configured) or fix `entryScript` path if enabling it.
 - **`422` on register in tests**: users already exist → use unique logins/emails in tests or reset DB volume.
 
----
-
-## License
-MIT (or your preferred license).

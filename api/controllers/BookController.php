@@ -37,7 +37,10 @@ class BookController extends Controller
     public function actionView($id)
     {
         $m = Book::findOne((int)$id);
-        if (!$m){ Yii::$app->response->statusCode=404; return ['error'=>'Book not found']; }
+        if (!$m){
+            Yii::$app->response->statusCode=404;
+            return ['error'=>'Book not found'];
+        }
         return $m;
     }
 
@@ -46,25 +49,39 @@ class BookController extends Controller
         $m = new Book();
         $m->load(Yii::$app->request->bodyParams, '');
         $m->created_by = Yii::$app->user->id;
-        if ($m->validate() && $m->save()) return $m;
+        if ($m->validate() && $m->save()){
+            return $m;
+        }
         Yii::$app->response->statusCode=422; return $m->getErrors();
     }
 
     public function actionUpdate($id)
     {
         $m = Book::findOne((int)$id);
-        if (!$m){ Yii::$app->response->statusCode=404; return ['error'=>'Book not found']; }
-        if ($m->created_by !== Yii::$app->user->id){ Yii::$app->response->statusCode=403; return ['error'=>'Forbidden']; }
+        if (!$m){
+            Yii::$app->response->statusCode=404; return ['error'=>'Book not found'];
+        }
+        if ($m->created_by !== Yii::$app->user->id){
+            Yii::$app->response->statusCode=403;
+            return ['error'=>'Forbidden'];
+        }
         $m->load(Yii::$app->request->bodyParams, '');
-        if ($m->validate() && $m->save()) return $m;
+        if ($m->validate() && $m->save()) {
+            return $m;
+        }
         Yii::$app->response->statusCode=422; return $m->getErrors();
     }
 
     public function actionDelete($id)
     {
         $m = Book::findOne((int)$id);
-        if (!$m){ Yii::$app->response->statusCode=404; return ['error'=>'Book not found']; }
-        if ($m->created_by !== Yii::$app->user->id){ Yii::$app->response->statusCode=403; return ['error'=>'Forbidden']; }
+        if (!$m){
+            Yii::$app->response->statusCode=404; return ['error'=>'Book not found'];
+        }
+        if ($m->created_by !== Yii::$app->user->id){
+            Yii::$app->response->statusCode=403;
+            return ['error'=>'Forbidden'];
+        }
         $m->delete();
         return ['status'=>'ok'];
     }

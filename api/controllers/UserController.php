@@ -37,7 +37,9 @@ class UserController extends Controller
         }
         $user->setPassword($password);
         $user->auth_key = Yii::$app->security->generateRandomString();
-        if ($user->validate() && $user->save()) return $user;
+        if ($user->validate() && $user->save()){
+            return $user;
+        }
         Yii::$app->response->statusCode = 422; return $user->getErrors();
     }
 
